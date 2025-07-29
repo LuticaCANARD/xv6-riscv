@@ -3,7 +3,6 @@
 #include "memlayout.h"
 #include "riscv.h"
 #include "defs.h"
-
 volatile static int started = 0;
 
 // start() jumps here in supervisor mode on all CPUs.
@@ -16,20 +15,17 @@ main()
     printfinit();
     printf("\n");
     printf("xv6 kernel is booting\n");
-    printf("███████╗██╗  ██╗██╗██████╗     ██╗      █████╗ ██████╗ \n");
-    printf("██╔════╝██║  ██║██║██╔══██╗    ██║     ██╔══██╗██╔══██╗\n");
-    printf("██╔════╝██║██║  ██║██╔══██╗    ██║     ██╔══██╗██╔══██╗\n");
-    printf("███████╗█████   ██║██║  ██║    ██║     ███████║██████╔╝\n");
-    printf("╚════██║██╔ ██  ██║██║  ██║    ██║     ██╔══██║██╔══██╗\n");
-    printf("███████║██║  ██║██║██████╔╝    ███████╗██║  ██║██████╔╝\n");
-    printf("╚══════╝╚═╝  ╚═╝╚═╝╚═════╝     ╚══════╝╚═╝  ╚═╝╚═════╝ \n");
+    printf("                       ███████╗██╗  ██╗██╗██████╗  \n");
+    printf("                       ██╔════╝██║  ██║██║██╔══██╗ \n");
+    printf("                       ██╔════╝██║██║  ██║██╔══██╗ \n");
+    printf("                       ███████╗█████   ██║██║  ██║ \n");
+    printf("                       ╚════██║██╔ ██  ██║██║  ██║ \n");
+    printf("                       ███████║██║  ██║██║██████╔╝ \n");
+    printf("                       ╚══════╝╚═╝  ╚═╝╚═╝╚═════╝  \n");
     printf("\n");
     printf("CPU %d: starting xv6 kernel\n", cpuid());
-    printf("  physical memory: %dMB\n", (riscv_memsize()>> 20));
-    printf("  kernel virtual memory: %dMB\n", (KERNBASE>> 20));
-    printf(" today is %s\n", ctime(riscv_time()));
-    printf("  RISC-V ISA: %s\n", riscv_isa_string());
-
+    printf("  physical memory: %ldMB\n", ((PHYSTOP - KERNBASE) >> 20));
+    printf("  kernel virtual memory: %ld MB\n", (KERNBASE>> 20));
     //-------------------------------------- Z INIT --------------------------------------
     kinit();         // physical page allocator
     kvminit();       // create kernel page table
