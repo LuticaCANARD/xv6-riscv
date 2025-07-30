@@ -3,7 +3,6 @@
 #include "memlayout.h"
 #include "riscv.h"
 #include "defs.h"
-
 volatile static int started = 0;
 
 // start() jumps here in supervisor mode on all CPUs.
@@ -12,10 +11,26 @@ main()
 {
   if(cpuid() == 0){
     consoleinit();
+    // ------------------ PROFILE ------------------
     printfinit();
     printf("\n");
     printf("xv6 kernel is booting\n");
+    printf("                       ███████╗██╗  ██╗██╗██████╗  \n");
+    printf("                       ██╔════╝██║  ██║██║██╔══██╗ \n");
+    printf("                       ██╔════╝██║██║  ██║██╔══██╗ \n");
+    printf("                       ███████╗█████   ██║██║  ██║ \n");
+    printf("                       ╚═══██║██╔ ██  ██║██║  ██║ \n");
+    printf("                       ███████║██║  ██║██║██████╔╝ \n");
+    printf("                       ╚══════╝╚═╝  ╚═╝╚═╝╚═════╝  \n");
     printf("\n");
+    printf("CPU %d: starting xv6 kernel\n", cpuid());
+    /**
+     * the kernel expects there to be RAM
+     * for use by the kernel and user pages
+     * from physical address 0x80000000 to PHYSTOP.
+     */
+    printf(" basic physical memory: %ldMB\n", ((PHYSTOP - KERNBASE) >> 20));
+    //-------------------------------------- Z INIT --------------------------------------
     kinit();         // physical page allocator
     kvminit();       // create kernel page table
     kvminithart();   // turn on paging
