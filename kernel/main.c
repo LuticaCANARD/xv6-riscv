@@ -19,13 +19,17 @@ main()
     printf("                       ██╔════╝██║  ██║██║██╔══██╗ \n");
     printf("                       ██╔════╝██║██║  ██║██╔══██╗ \n");
     printf("                       ███████╗█████   ██║██║  ██║ \n");
-    printf("                       ╚════██║██╔ ██  ██║██║  ██║ \n");
+    printf("                       ╚═══██║██╔ ██  ██║██║  ██║ \n");
     printf("                       ███████║██║  ██║██║██████╔╝ \n");
     printf("                       ╚══════╝╚═╝  ╚═╝╚═╝╚═════╝  \n");
     printf("\n");
     printf("CPU %d: starting xv6 kernel\n", cpuid());
-    printf("  physical memory: %ldMB\n", ((PHYSTOP - KERNBASE) >> 20));
-    printf("  kernel virtual memory: %ld MB\n", (KERNBASE>> 20));
+    /**
+     * the kernel expects there to be RAM
+     * for use by the kernel and user pages
+     * from physical address 0x80000000 to PHYSTOP.
+     */
+    printf(" basic physical memory: %ldMB\n", ((PHYSTOP - KERNBASE) >> 20));
     //-------------------------------------- Z INIT --------------------------------------
     kinit();         // physical page allocator
     kvminit();       // create kernel page table
