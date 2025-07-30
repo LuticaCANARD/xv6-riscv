@@ -16,7 +16,7 @@
 #include "file.h"
 #include "fcntl.h"
 
-extern int _Atomic count;
+extern uint64 _Atomic count;
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -508,9 +508,9 @@ sys_pipe(void)
   return 0;
 }
 
-int _Atomic count;
+uint64 _Atomic count;
 
-int
+uint64
 sys_getreadcount(void)
 {
   return count;
