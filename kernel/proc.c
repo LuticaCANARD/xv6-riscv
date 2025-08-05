@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "defs.h"
 #include "pstat.h"
+#include "rand.h"
 
 struct cpu cpus[NCPU];
 
@@ -51,7 +52,6 @@ procinit(void)
   struct proc *p;
   
   // initialize the proc table.
-  randinit();
 
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
@@ -458,53 +458,74 @@ scheduler(void)
 
   c->proc = 0;
   for(;;){
-    // Enable interrupts on this core.
+    // The most recent process to run may have had interrupts
+    // turned off; enable them to avoid a deadlock if all
+    // processes are waiting. Then turn them back off
+    // to avoid a possible race between an interrupt
+    // and wfi.
     intr_on();
     uint64 total_tickets = 0;
-    // First, calculate the total number of tickets of all runnable processes.
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        total_tickets += p->tickets;
+    for(struct proc *curr = proc; curr < &proc[NPROC]; curr++) {
+      acquire(&curr->lock);
+      if(curr->state == RUNNABLE || curr->state == RUNNING) {
+        total_tickets += curr->tickets;
       }
-      release(&p->lock);
+      release(&curr->lock);
     }
-    int found = 0;
-    if(total_tickets > 0) {
-      // Pick a winning ticket.
-      uint64 winner_ticket = rand() % total_tickets;
-      uint64 current_tickets = 0;
-      struct proc *winner = 0;
-      // Find the winning process.
+    short found = 0;
+    if(total_tickets == 0) {
+      // No runnable processes, wait for an interrupt.
       for(p = proc; p < &proc[NPROC]; p++) {
         acquire(&p->lock);
         if(p->state == RUNNABLE) {
-          current_tickets += p->tickets;
-          if(current_tickets > winner_ticket) {
-            winner = p;
+          // Switch to chosen process.  It is the process's job
+          // to release its lock and then reacquire it
+          // before jumping back to us.
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
+
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+          found = 1;
+        }
+        release(&p->lock);
+      }
+      if(found == 0) {
+        asm volatile("wfi");
+      }
+    } else {
+      uint64 random_ticket = rand() % total_tickets;
+      uint64 current_ticket = 0;
+      for(p = proc; p < &proc[NPROC]; p++) {
+        acquire(&p->lock);
+        if(p->state == RUNNABLE) {
+          current_ticket += p->tickets;
+          if(current_ticket > random_ticket) {
+            // Switch to chosen process.  It is the process's job
+            // to release its lock and then reacquire it
+            // before jumping back to us.
             p->state = RUNNING;
             c->proc = p;
-            
             swtch(&c->context, &p->context);
-
             // Process is done running for now.
             // It should have changed its p->state before coming back.
             c->proc = 0;
             found = 1;
             release(&p->lock);
-            break;
+            break; // Exit the loop after switching to the chosen process
           }
-        } else {
-          release(&p->lock);
         }
+        release(&p->lock);
       }
     }
-    if (found == 0) {
+    if(!found) {
+      // No runnable processes, wait for an interrupt.
       asm volatile("wfi");
     }
   }
 }
-
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
 // intena because intena is a property of this

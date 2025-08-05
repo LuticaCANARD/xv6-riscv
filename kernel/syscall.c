@@ -102,6 +102,11 @@ extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
 extern uint64 sys_getreadcount(void);
+// <H2> Set the number of tickets for lottery scheduling
+extern uint64 sys_settickets(void);
+// <H2> Get process information for
+extern uint64 sys_getpinfo(void);   
+
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -127,7 +132,11 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
-[SYS_getreadcount] sys_getreadcount
+[SYS_getreadcount] sys_getreadcount,
+// <H2> Set the number of tickets for lottery scheduling
+[SYS_settickets] sys_settickets, 
+// <H2> Get process information for lottery scheduling
+[SYS_getpinfo] sys_getpinfo,     
 };
 
 void
@@ -145,4 +154,32 @@ syscall(void)
             p->pid, p->name, num);
     p->trapframe->a0 = -1;
   }
+}
+
+uint64
+sys_settickets(void)
+{
+  uint64 n;
+  argaddr(0, &n);
+  if (n < 1) // ticket most upper then 1
+    return -1; // Cannot set tickets to less than 1
+  struct proc* p = myproc();
+  acquire(&p->lock);
+  p->tickets = n; // Set the number of tickets for the current process
+  release(&p->lock);
+  return 0;
+}
+
+uint64 getpinfo(struct pstat * target);
+
+uint64
+sys_getpinfo(void)
+{
+  struct pstat *pstataddr;
+  argaddr(0, (uint64 *)&pstataddr);
+  if (pstataddr == 0) {
+    // Invalid address
+    return -1;
+  }
+  return getpinfo(pstataddr);
 }
