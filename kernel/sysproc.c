@@ -5,6 +5,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "pstat.h"
 
 uint64
 sys_exit(void)
@@ -90,4 +91,30 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+uint64
+sys_settickets(void)
+{
+  uint64 n;
+  argaddr(0, &n);
+  if (n < 1) // ticket most upper then 1
+    return -1; // Cannot set tickets to less than 1
+  struct proc* p = myproc();
+  acquire(&p->lock);
+  p->tickets = n; // Set the number of tickets for the current process
+  release(&p->lock);
+  return 0;
+}
+
+uint64
+sys_getpinfo(void)
+{
+  struct pstat *pstataddr;
+  argaddr(0, (uint64 *)&pstataddr);
+  if (pstataddr == 0) {
+    // Invalid address
+    return -1;
+  }
+  return getpinfo(pstataddr);
 }

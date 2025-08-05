@@ -37,4 +37,6 @@ entry("sbrk");
 entry("sleep");
 entry("uptime");
 entry("getreadcount");
+entry("settickets"); # <H2> Set the number of tickets for lottery scheduling
+entry("getpinfo");   # <H2> Get process information for lottery scheduling
 

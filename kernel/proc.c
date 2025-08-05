@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "pstat.h"
 
 struct cpu cpus[NCPU];
 
@@ -49,6 +50,9 @@ procinit(void)
 {
   struct proc *p;
   
+  // initialize the proc table.
+  randinit();
+
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
   for(p = proc; p < &proc[NPROC]; p++) {
@@ -169,6 +173,8 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  p->tickets = 0; // <H2> Reset tickets for lottery scheduling
+  p->ticks = 0;   // <H2> Reset ticks accumulated by the process
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -250,6 +256,9 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+
+  p->tickets = 1; // <H2> Initialize tickets for lottery scheduling
+  p->ticks = 0;   // <H2> Initialize ticks accumulated by the process
 
   release(&p->lock);
 }
@@ -449,32 +458,48 @@ scheduler(void)
 
   c->proc = 0;
   for(;;){
-    // The most recent process to run may have had interrupts
-    // turned off; enable them to avoid a deadlock if all
-    // processes are waiting.
+    // Enable interrupts on this core.
     intr_on();
-
-    int found = 0;
+    uint64 total_tickets = 0;
+    // First, calculate the total number of tickets of all runnable processes.
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        found = 1;
+        total_tickets += p->tickets;
       }
       release(&p->lock);
     }
-    if(found == 0) {
-      // nothing to run; stop running on this core until an interrupt.
-      intr_on();
+    int found = 0;
+    if(total_tickets > 0) {
+      // Pick a winning ticket.
+      uint64 winner_ticket = rand() % total_tickets;
+      uint64 current_tickets = 0;
+      struct proc *winner = 0;
+      // Find the winning process.
+      for(p = proc; p < &proc[NPROC]; p++) {
+        acquire(&p->lock);
+        if(p->state == RUNNABLE) {
+          current_tickets += p->tickets;
+          if(current_tickets > winner_ticket) {
+            winner = p;
+            p->state = RUNNING;
+            c->proc = p;
+            
+            swtch(&c->context, &p->context);
+
+            // Process is done running for now.
+            // It should have changed its p->state before coming back.
+            c->proc = 0;
+            found = 1;
+            release(&p->lock);
+            break;
+          }
+        } else {
+          release(&p->lock);
+        }
+      }
+    }
+    if (found == 0) {
       asm volatile("wfi");
     }
   }
@@ -692,4 +717,40 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+uint64
+getpinfo(uint64 target) {
+  struct proc *p;
+  struct pstat pst; // 1. Create a temporary structure in the kernel.
+
+  if (target == 0) {
+    // Invalid address
+    return -1;
+  }
+  for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    int i = p - proc; // current index of this process in the `proc array`
+    if (p->state != UNUSED) {
+      pst.inuse[i] = 1;
+      pst.tickets[i] = p->tickets;
+      pst.pid[i] = p->pid;
+      pst.ticks[i] = p->ticks; // Assuming ticks is a field in struct proc
+    } else {
+      pst.inuse[i] = 0;
+      pst.tickets[i] = 0;
+      pst.pid[i] = 0;
+      pst.ticks[i] = 0;
+    }
+    release(&p->lock);
+  }
+
+  struct proc *pmy = myproc();
+  if(copyout(pmy->pagetable,
+      target,
+      (char *)&pst, 
+      sizeof(struct pstat)) < 0) 
+    return -1; // Error copying out
+
+  return 0; // Success
 }

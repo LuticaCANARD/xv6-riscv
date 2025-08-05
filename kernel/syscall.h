@@ -21,3 +21,6 @@
 #define SYS_mkdir  20
 #define SYS_close  21
 #define SYS_getreadcount 22
+#define SYS_settickets 23 // <H2> Set the number of tickets for lottery scheduling
+#define SYS_getpinfo 24   // <H2> Get process information for lottery scheduling
+
