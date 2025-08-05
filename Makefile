@@ -142,6 +142,7 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
+	$U/_h2show
 
 
 fs.img: mkfs/mkfs README $(UPROGS)

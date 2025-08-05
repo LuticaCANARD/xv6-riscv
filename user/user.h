@@ -1,4 +1,5 @@
 struct stat;
+struct pstat;
 
 // system calls
 int fork(void);
@@ -42,4 +43,5 @@ void *memcpy(void *, const void *, uint);
 void* malloc(uint);
 void free(void*);
 int getreadcount(void);
-
+int settickets(int);
+int getpinfo(struct pstat*);
